@@ -322,7 +322,7 @@ export default function Survey() {
         //    because the DB flag is set server-side and cannot be tampered with client-side.
         try {
           const sid = sessionId.current;
-          const dbRes = await fetch(`/survey/session/${encodeURIComponent(sid)}/responses`);
+          const dbRes = await apiClient.fetch(`/survey/session/${encodeURIComponent(sid)}/responses`);
           if (dbRes.ok) {
             const dbData = await dbRes.json();
 

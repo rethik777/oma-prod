@@ -6,20 +6,57 @@ import { Label } from "../components/ui/label";
 
 import logo from "../assets/logo.png";
 import "../styles/login-background.css";
+import apiClient, { storeToken, getStoredToken } from "../config/api";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    navigate("/home");
-  };
+  // Check if already logged in (token exists)
+  useEffect(() => {
+    if (getStoredToken()) {
+      navigate("/dashboard");
+    }
+  }, [navigate]);
 
-  const handleSSO = () => {
-    navigate("/home");
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const response = await apiClient.fetch("/credential/login", {
+        method: "POST",
+        body: JSON.stringify({
+          username,
+          password
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        setError(errorData || "Login failed. Please check your credentials.");
+        setIsLoading(false);
+        return;
+      }
+
+      const data = await response.json();
+      
+      // Store JWT token
+      if (data.token) {
+        storeToken(data.token);
+      }
+      
+      // Navigate to dashboard
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred during login");
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -150,17 +187,24 @@ export default function Login() {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6 animate-fade-in-up animate-delay-200">
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                {error}
+              </div>
+            )}
+            
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-[#4A4A4A]">
-                Email
+              <Label htmlFor="username" className="text-[#4A4A4A]">
+                Username
               </Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="you@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                placeholder="your.username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 required
+                disabled={isLoading}
                 className="h-12 border-gray-300 focus:border-[#002D72] focus:ring-[#002D72]"
               />
             </div>
@@ -176,6 +220,7 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={isLoading}
                 className="h-12 border-gray-300 focus:border-[#002D72] focus:ring-[#002D72]"
               />
             </div>
@@ -191,30 +236,12 @@ export default function Login() {
 
             <Button
               type="submit"
-              className="w-full h-12 bg-[#002D72] hover:bg-[#001f52] text-white"
+              disabled={isLoading}
+              className="w-full h-12 bg-[#002D72] hover:bg-[#001f52] text-white disabled:opacity-50"
             >
-              Sign In
+              {isLoading ? "Signing in..." : "Sign In"}
             </Button>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white text-[#4A4A4A]">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleSSO}
-              className="w-full h-12 border-2 border-gray-300 hover:border-[#002D72] hover:bg-gray-50"
-            >
-              Sign in with SSO
-            </Button>
           </form>
         </div>
       </div>

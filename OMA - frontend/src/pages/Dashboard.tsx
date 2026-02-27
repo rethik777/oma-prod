@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
-import apiClient from "../config/api";
+import apiClient, { removeToken, getStoredToken } from "../config/api";
+import { jwtDecode } from "jwt-decode";
 import {
   RadarChart,
   PolarGrid,
@@ -40,6 +41,48 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [overallScore, setOverallScore] = useState<number>(0);
+  const [username, setUsername] = useState<string | null>(null);
+
+  // Check if token is expired
+  const isTokenExpired = (token: string): boolean => {
+    try {
+      const decoded: any = jwtDecode(token);
+      const currentTime = Date.now() / 1000; // Convert to seconds
+      return decoded.exp < currentTime;
+    } catch (e) {
+      return true; // If decode fails, consider it expired
+    }
+  };
+
+  // Check if user is authenticated (JWT token exists and not expired)
+  useEffect(() => {
+    const token = getStoredToken();
+    
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    
+    // Check if token is expired
+    if (isTokenExpired(token)) {
+      removeToken(); // Clear expired token
+      navigate("/login");
+      return;
+    }
+    
+    // Token is valid, extract username
+    try {
+      const decoded: any = jwtDecode(token);
+      setUsername(decoded.sub || "User"); // 'sub' contains the username
+    } catch (e) {
+      setUsername("User");
+    }
+  }, [navigate]);
+
+  const handleLogout = () => {
+    removeToken();
+    navigate("/login");
+  };
 
   // Calculate overall score as average of all category scores
   useEffect(() => {
@@ -173,12 +216,18 @@ export default function Dashboard() {
             <div className="flex gap-4">
               <Button
                 variant="ghost"
-                onClick={() => navigate("/home")}
+                onClick={() => navigate("/")}
                 className="text-[#4A4A4A] hover:text-[#002D72]"
               >
                 Home
               </Button>
-              
+              <Button
+                variant="outline"
+                onClick={handleLogout}
+                className="text-[#002D72] border-[#002D72] hover:bg-[#002D72] hover:text-white"
+              >
+                Logout
+              </Button>
             </div>
           </div>
         </div>
