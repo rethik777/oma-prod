@@ -54,7 +54,7 @@ vite.config.*.timestamp-*
 #scripts
 
 scripts/dev-env.sh
-
+scripts/dev-env.ps1
 # Package manager logs
 npm-debug.log*
 yarn-debug.log*
