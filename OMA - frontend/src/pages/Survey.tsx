@@ -24,6 +24,7 @@ const LS_POSITION   = "oma_survey_position";
 const LS_SESSION_ID = "oma_session_id";
 const LS_STARTED_AT = "oma_survey_started_at";
 const LS_SUBMITTED  = "oma_survey_submitted";
+const LS_TOUR_DONE  = "oma_nav_tour_done";
 const FREE_TEXT_MAX_LENGTH = 5000; // hard cap on free-text before it reaches the DB
 
 // ── Cookie helpers ──
@@ -185,7 +186,13 @@ export default function Survey() {
   const [rankReordered, setRankReordered] = useState(false);
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
   const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
-
+  const [showNavTour, setShowNavTour] = useState(() => {
+    // Tour is only for small screens (< 768px)
+    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) return false;
+    return localStorage.getItem(LS_TOUR_DONE) !== "true";
+  });
+  const [tourPhase, setTourPhase] = useState<'scroll' | 'colors' | 'done'>('scroll');
+  const navStripRef = useRef<HTMLDivElement>(null);
 
   const sessionId = useRef(getOrCreateSessionId());
   const restoredPosition = useRef(false);
@@ -196,6 +203,58 @@ export default function Survey() {
     setRankReordered(false);
     window.scrollTo({ top: 0, behavior: "instant" });
   }, [currentCategoryIndex, currentQuestionIndex]);
+
+  // ── Navigator tour: full motion sequence (scroll → color pulse → done) — mobile only ──
+  useEffect(() => {
+    if (!showNavTour || !navStripRef.current) return;
+    // Only run on small screens (< 768px); on desktop the scrollbar is visible and strip is spacious
+    if (window.matchMedia('(min-width: 768px)').matches) {
+      setShowNavTour(false);
+      localStorage.setItem(LS_TOUR_DONE, 'true');
+      return;
+    }
+    const el = navStripRef.current;
+    let cancelled = false;
+
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+    const run = async () => {
+      // Phase 1: Scroll demo
+      setTourPhase('scroll');
+      const maxScroll = el.scrollWidth - el.clientWidth;
+      if (maxScroll > 0) {
+        await wait(600);
+        if (cancelled) return;
+        el.scrollTo({ left: maxScroll, behavior: 'smooth' });
+        await wait(1400);
+        if (cancelled) return;
+        el.scrollTo({ left: 0, behavior: 'smooth' });
+        await wait(1000);
+        if (cancelled) return;
+      } else {
+        await wait(600);
+        if (cancelled) return;
+      }
+
+      // Phase 2: Color pulse
+      setTourPhase('colors');
+      await wait(3000);
+      if (cancelled) return;
+
+      // Done
+      setTourPhase('done');
+      setShowNavTour(false);
+      localStorage.setItem(LS_TOUR_DONE, 'true');
+    };
+
+    run();
+    return () => { cancelled = true; };
+  }, [showNavTour]);
+
+  const dismissTour = () => {
+    setShowNavTour(false);
+    localStorage.setItem(LS_TOUR_DONE, "true");
+  };
 
   // ── Track online/offline status ──
   useEffect(() => {
@@ -609,7 +668,7 @@ export default function Survey() {
             <div className="flex items-center gap-3">
               <img src={logo} alt="OMA Tool Logo" className="h-10 w-auto" />
               <h1 className="text-2xl font-light tracking-wider text-[#002D72]">
-                OMA-Beta
+                OMA
               </h1>
             </div>
             {/* Autosave indicator */}
@@ -647,8 +706,11 @@ export default function Survey() {
           </div>
 
           {/* ── Question Navigator Strip ── */}
-          <div className="mt-4 md:mt-7 mb-1 overflow-visible">
-            <div className="flex gap-1.5 sm:gap-2 md:gap-3.5 overflow-x-auto overflow-y-visible px-3 pt-2 pb-2 hide-scrollbar md:scrollbar-thin">
+          <div className={`mt-4 md:mt-7 mb-1 overflow-visible relative transition-all duration-500 ${showNavTour ? 'z-[70]' : ''}`}>
+            <div
+              ref={navStripRef}
+              className="flex gap-1.5 sm:gap-2 md:gap-3.5 overflow-x-auto overflow-y-visible px-3 pt-2 pb-2 hide-scrollbar md:scrollbar-thin"
+            >
               {allQuestions.map((q, globalIdx) => {
                 const answered = isQuestionAnswered(q, responses[String(q.main_question_id)]);
                 const isCurrent = q.main_question_id === currentQuestion?.main_question_id;
@@ -660,7 +722,7 @@ export default function Survey() {
                   <button
                     key={q.main_question_id}
                     type="button"
-                    onClick={() => navigateToGlobalIndex(globalIdx)}
+                    onClick={() => { if (!showNavTour) navigateToGlobalIndex(globalIdx); }}
                     title={`Q${globalIdx + 1}: ${catName} — ${q.question_text.slice(0, 60)}${q.question_text.length > 60 ? '…' : ''}`}
                     className={`flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 md:w-9 md:h-9 rounded-full text-[10px] sm:text-[11px] md:text-[14px] font-semibold transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[#008489]/40
                       ${isCurrent
@@ -668,14 +730,48 @@ export default function Survey() {
                         : answered
                           ? 'bg-[#008489] text-white hover:scale-110 md:hover:scale-125'
                           : 'bg-gray-200 text-[#4A4A4A] hover:bg-gray-300 hover:scale-110 md:hover:scale-125'
-                      }`}
+                      }
+                      ${showNavTour && tourPhase === 'colors' && isCurrent ? 'animate-tour-pulse-current' : ''}
+                      ${showNavTour && tourPhase === 'colors' && answered && !isCurrent ? 'animate-tour-pulse-answered' : ''}
+                      ${showNavTour && tourPhase === 'colors' && !answered && !isCurrent ? 'animate-tour-pulse-unanswered' : ''}
+                    `}
                   >
                     {globalIdx + 1}
                   </button>
                 );
               })}
             </div>
+
+            {/* Floating color labels during tour color phase */}
+            {showNavTour && tourPhase === 'colors' && (
+              <div className="flex items-center justify-center gap-4 sm:gap-6 mt-2 pb-1 animate-tour-labels-in">
+                <span className="flex items-center gap-1.5 bg-white/90 backdrop-blur px-2.5 py-1 rounded-full shadow-md border border-[#002D72]/20 text-[10px] sm:text-xs font-medium text-[#002D72]">
+                  <span className="w-3 h-3 rounded-full bg-[#002D72] animate-pulse"></span> Current
+                </span>
+                <span className="flex items-center gap-1.5 bg-white/90 backdrop-blur px-2.5 py-1 rounded-full shadow-md border border-[#008489]/20 text-[10px] sm:text-xs font-medium text-[#008489]">
+                  <span className="w-3 h-3 rounded-full bg-[#008489] animate-pulse"></span> Answered
+                </span>
+                <span className="flex items-center gap-1.5 bg-white/90 backdrop-blur px-2.5 py-1 rounded-full shadow-md border border-gray-300 text-[10px] sm:text-xs font-medium text-[#4A4A4A]">
+                  <span className="w-3 h-3 rounded-full bg-gray-200 animate-pulse"></span> Unanswered
+                </span>
+              </div>
+            )}
+
+            {/* Scroll hint text during scroll phase */}
+            {showNavTour && tourPhase === 'scroll' && (
+              <p className="text-center text-[10px] sm:text-xs text-white font-medium mt-2 animate-tour-labels-in">
+                Swipe or scroll to see all questions →
+              </p>
+            )}
           </div>
+
+          {/* ── Tour dimming overlay ── */}
+          {showNavTour && (
+            <div
+              className="fixed inset-0 bg-black/40 z-[60] transition-opacity duration-500"
+              onClick={dismissTour}
+            />
+          )}
         </div>
       </div>
 
@@ -831,7 +927,7 @@ export default function Survey() {
               {unansweredCount} Question{unansweredCount !== 1 ? "s" : ""} Not Answered
             </AlertDialogTitle>
             <AlertDialogDescription className="text-[#4A4A4A] leading-relaxed">
-              You still have unanswered questions. Click a question below to go directly to it, or close this dialog to continue browsing.
+              You still have unanswered questions. Click a question below to answer it.
             </AlertDialogDescription>
           </AlertDialogHeader>
 

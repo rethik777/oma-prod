@@ -141,7 +141,7 @@ export default function InstructionPage() {
             >
               <img src={logo} alt="HARTS Consulting Logo" className="h-10 w-auto" />
               <span className="text-2xl font-light tracking-wider text-[#002D72] hidden sm:block">
-                OMA Beta
+                OMA
               </span>
             </div>
             <span className="text-sm text-[#4A4A4A] font-medium tracking-wide uppercase">
@@ -164,7 +164,7 @@ export default function InstructionPage() {
             id="survey-title"
             className="text-2xl sm:text-3xl md:text-4xl font-semibold leading-snug"
           >
-            Welcome to the Organisational Assessment Survey - Leadership
+            Welcome to the Organisational Maturity Assessment Survey - Leadership
           </h1>
         </section>
         {/* ── Anonymous/Confidential ── */}
