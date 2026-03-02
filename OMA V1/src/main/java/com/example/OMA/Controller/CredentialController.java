@@ -1,6 +1,7 @@
 package com.example.OMA.Controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,5 +23,10 @@ public class CredentialController {
     public ResponseEntity<String> register(@RequestBody Credentials user) {
         credentialService.registerUser(user);
         return ResponseEntity.ok("User registered successfully");
+    }
+
+    @GetMapping("/check")
+    public String check(){
+        return "Checked";
     }
 }

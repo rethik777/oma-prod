@@ -1,5 +1,6 @@
 package com.example.OMA.Service;
 
+import com.example.OMA.DTO.BertResponse;
 import com.example.OMA.DTO.SaveAnswerDTO;
 import com.example.OMA.DTO.SurveySubmissionDTO;
 import com.example.OMA.Model.MainQuestion;
@@ -10,8 +11,11 @@ import com.example.OMA.Repository.MainQuestionRepo;
 import com.example.OMA.Repository.OptionRepo;
 import com.example.OMA.Repository.SurveyResponseRepo;
 import com.example.OMA.Repository.SurveySubmissionRepo;
+
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -270,7 +274,15 @@ public class SurveyService {
                 categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(score));
             }
             else{
-                categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(BigDecimal.TWO));
+                RestTemplate restTemplate = new RestTemplate();
+                String url = "http://localhost:8000/predict";
+                Map<String, String> request = new HashMap<>();
+                request.put("text", response.getFreeText());
+                ResponseEntity<BertResponse> res = restTemplate.postForEntity(url, request, BertResponse.class);
+                BertResponse body = res.getBody();
+                BigDecimal stage = body.getPredicted_class_id();
+                // System.out.println(response.getFreeText() +" ------ "+stage);
+                categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(stage));
             }
 
             categoryCount.put(categoryId, categoryCount.getOrDefault(categoryId, 0)+1);
@@ -291,9 +303,9 @@ public class SurveyService {
 
         }
         
-        System.out.println("Category Total Score : " + categoryTotalScore);
-        System.out.println("Category Count : "+ categoryCount);
-        System.out.println("Category Average : "+ categoryAverage);
+        // System.out.println("Category Total Score : " + categoryTotalScore);
+        // System.out.println("Category Count : "+ categoryCount);
+        // System.out.println("Category Average : "+ categoryAverage);
         return categoryAverage;
     }
 

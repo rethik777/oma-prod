@@ -23,6 +23,7 @@ public class SurveyController {
     public SurveyController(SurveyService surveyService, RecaptchaService recaptchaService) {
         this.surveyService = surveyService;
         this.recaptchaService = recaptchaService;
+
     }
 
     /** Incrementally save one answer (called on Next click, debounced 2 s). */
@@ -154,8 +155,4 @@ public class SurveyController {
         return surveyService.getAllResponse();
     }
 
-    @GetMapping("abc")
-    public int abc(){
-        return 809;
-    }
 }

@@ -29,7 +29,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/survey/survey_score").authenticated()
                 .requestMatchers("/api/survey/**").permitAll()
                 .requestMatchers("/api/category/**").permitAll()
-                .requestMatchers("/api/credential/register").permitAll()
+                .requestMatchers("/api/credential/**").permitAll()
                 .anyRequest().denyAll()
             )
             // .formLogin(Customizer.withDefaults());
