@@ -30,18 +30,40 @@ export default function Login() {
         })
       });
 
-      if (!response.ok) {
-        const errorData = await response.text();
-        setError(errorData || "Login failed. Please check your credentials.");
+      // Handle different response statuses
+      if (response.status === 429) {
+        // Rate limited
+        const errorData = await response.json();
+        setError(errorData.message || "Too many login attempts. Please try again in 1 minute.");
         setIsLoading(false);
         return;
       }
 
-      // JWT is now set in httpOnly cookie by backend
-      // Navigate to dashboard
-      navigate("/dashboard");
+      if (response.status === 401) {
+        // Unauthorized (wrong credentials)
+        setError("Invalid username or password.");
+        setIsLoading(false);
+        return;
+      }
+
+      if (response.status === 200) {
+        // Success - parse response and navigate to dashboard
+        const responseData = await response.json();
+        
+        // Small delay to ensure cookie is set
+        setTimeout(() => {
+          navigate("/dashboard");
+        }, 100);
+        return;
+      }
+
+      // Other errors
+      const errorText = await response.text();
+      setError(errorText || "Login failed. Please try again.");
+      setIsLoading(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred during login");
+      const errorMsg = err instanceof Error ? err.message : "An error occurred during login";
+      setError(errorMsg);
       setIsLoading(false);
     }
   };
