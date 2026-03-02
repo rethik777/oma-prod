@@ -3,6 +3,7 @@
 /Users/rohith/OMAv1/OMA V1/src/main/java/com/example/OMA/DTO/OptionResponseDTO.java
 /Users/rohith/OMAv1/OMA V1/src/main/java/com/example/OMA/DTO/SubQuestionResponseDTO.java
 /Users/rohith/OMAv1/OMA V1/src/main/java/com/example/OMA/Repository/CredentialsRepo.java
+/Users/rohith/OMAv1/OMA V1/src/main/java/com/example/OMA/Config/EnvironmentValidator.java
 /Users/rohith/OMAv1/OMA V1/src/main/java/com/example/OMA/Config/CacheWarmer.java
 /Users/rohith/OMAv1/OMA V1/src/main/java/com/example/OMA/DTO/SaveAnswerDTO.java
 /Users/rohith/OMAv1/OMA V1/src/main/java/com/example/OMA/Repository/CategoryRepo.java
