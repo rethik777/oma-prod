@@ -76,6 +76,17 @@ public class SecurityConfig {
             .csrf(csrf -> csrf
                 .disable()
             )
+            // Security headers for production
+            .headers(headers -> headers
+                .httpStrictTransportSecurity(hsts -> hsts
+                    .includeSubDomains(true)
+                    .maxAgeInSeconds(31536000)  // 1 year
+                )
+                .frameOptions(frameOptions -> frameOptions.deny())
+                .contentSecurityPolicy(csp -> csp
+                    .policyDirectives("default-src 'self'; script-src 'self' https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/; frame-src https://www.google.com/recaptcha/; connect-src 'self'; style-src 'self' 'unsafe-inline'")
+                )
+            )
             // Stateless JWT authentication
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)

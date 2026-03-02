@@ -9,11 +9,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
 
 import com.example.OMA.Model.Credentials;
 import com.example.OMA.Service.CredentialService;
 import com.example.OMA.Repository.CredentialsRepo;
 import com.example.OMA.Util.JwtUtil;
+import com.example.OMA.Util.RateLimitingUtil;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -26,12 +28,19 @@ public class CredentialController {
     private final CredentialsRepo credentialsRepo;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final RateLimitingUtil rateLimitingUtil;
     
-    public CredentialController(CredentialService credentialService, CredentialsRepo credentialsRepo, PasswordEncoder passwordEncoder, JwtUtil jwtUtil){
+    public CredentialController(
+            CredentialService credentialService, 
+            CredentialsRepo credentialsRepo, 
+            PasswordEncoder passwordEncoder, 
+            JwtUtil jwtUtil,
+            RateLimitingUtil rateLimitingUtil) {
         this.credentialService = credentialService;
         this.credentialsRepo = credentialsRepo;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.rateLimitingUtil = rateLimitingUtil;
     }
 
     @PostMapping("/register")
@@ -41,8 +50,19 @@ public class CredentialController {
     }
     
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Credentials credentials, HttpServletResponse response) {
+    public ResponseEntity<?> login(@RequestBody Credentials credentials, HttpServletRequest request, HttpServletResponse response) {
         try {
+            // Get client IP address
+            String clientIp = getClientIp(request);
+
+            // Check rate limit (5 attempts per minute per IP)
+            if (!rateLimitingUtil.isLoginAllowed(clientIp)) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "Too many login attempts. Please try again in 1 minute.");
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(errorResponse);
+            }
+
             var existingUser = credentialsRepo.findByUsername(credentials.getUsername());
             
             if (existingUser.isEmpty()) {
@@ -75,6 +95,25 @@ public class CredentialController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Login failed");
         }
+    }
+
+    /**
+     * Extract client IP address from request.
+     * Handles X-Forwarded-For header for proxies and load balancers.
+     */
+    private String getClientIp(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
+            // X-Forwarded-For can contain multiple IPs, get the first one (client IP)
+            return xForwardedFor.split(",")[0].trim();
+        }
+        
+        String xRealIp = request.getHeader("X-Real-IP");
+        if (xRealIp != null && !xRealIp.isEmpty()) {
+            return xRealIp;
+        }
+        
+        return request.getRemoteAddr();
     }
     
     @GetMapping("/check")

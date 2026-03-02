@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../components/ui/button";
 import apiClient from "../config/api";
 import logo from "../assets/HARTS Consulting LBG.png";
@@ -70,11 +70,40 @@ export default function InstructionPage() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Load reCAPTCHA script dynamically when component mounts
+  useEffect(() => {
+    const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+    
+    if (!recaptchaSiteKey) {
+      setError("reCAPTCHA is not configured. Please set VITE_RECAPTCHA_SITE_KEY.");
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = `https://www.google.com/recaptcha/api.js?render=${recaptchaSiteKey}`;
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+
+    return () => {
+      // Cleanup script if component unmounts
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
+  }, []);
+
   const handleStartSurvey = async () => {
     setIsVerifying(true);
     setError(null);
 
     try {
+      const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+      
+      if (!recaptchaSiteKey) {
+        throw new Error("reCAPTCHA site key is not configured");
+      }
+
       // Get reCAPTCHA token
       const token = await new Promise<string>((resolve, reject) => {
         const recaptcha = (window as any).grecaptcha;
@@ -84,7 +113,7 @@ export default function InstructionPage() {
         }
         recaptcha.ready(() => {
           recaptcha
-            .execute("6LePxXAsAAAAAEvvSb8dciBIAoDbKvPIvYC6MCXW", {
+            .execute(recaptchaSiteKey, {
               action: "survey_start",
             })
             .then((token: string) => resolve(token))
