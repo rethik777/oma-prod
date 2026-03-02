@@ -8,8 +8,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Cookie;
 
 import com.example.OMA.Model.Credentials;
 import com.example.OMA.Service.CredentialService;
@@ -83,13 +84,14 @@ public class CredentialController {
             // Generate JWT token
             String token = jwtUtil.generateToken(user.getUsername());
             
-            // Set JWT in httpOnly cookie (more secure than localStorage)
-            response.addHeader("Set-Cookie", 
-                String.format("jwt=%s; Path=/; HttpOnly; SameSite=Strict; Max-Age=%d", 
-                    token, 
-                    30 * 60  // 30 minutes in seconds
-                )
-            );
+            // Set JWT in httpOnly cookie using proper Cookie API
+            Cookie jwtCookie = new Cookie("jwt", token);
+            jwtCookie.setHttpOnly(true);           // Prevent JavaScript access (XSS protection)
+            jwtCookie.setSecure(false);            // Set to true in production (HTTPS only)
+            jwtCookie.setPath("/");                // Available across entire app
+            jwtCookie.setMaxAge(30 * 60);          // 30 minutes
+            jwtCookie.setAttribute("SameSite", "Strict");  // CSRF protection
+            response.addCookie(jwtCookie);
             
             Map<String, Object> responseBody = new HashMap<>();
             responseBody.put("username", user.getUsername());
@@ -120,6 +122,29 @@ public class CredentialController {
         return request.getRemoteAddr();
     }
     
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(HttpServletResponse response) {
+        try {
+            // Clear JWT cookie by setting maxAge to 0
+            Cookie jwtCookie = new Cookie("jwt", "");
+            jwtCookie.setHttpOnly(true);
+            jwtCookie.setSecure(false);  // Set to true in production
+            jwtCookie.setPath("/");
+            jwtCookie.setMaxAge(0);  // Immediately expire the cookie
+            jwtCookie.setAttribute("SameSite", "Strict");
+            response.addCookie(jwtCookie);
+            
+            Map<String, Object> responseBody = new HashMap<>();
+            responseBody.put("success", true);
+            responseBody.put("message", "Logout successful");
+            
+            return ResponseEntity.ok(responseBody);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Logout failed");
+        }
+    }
+
     @GetMapping("/check")
     public String simple(){
         return "success";

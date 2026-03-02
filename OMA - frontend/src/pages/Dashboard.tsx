@@ -61,10 +61,19 @@ export default function Dashboard() {
       });
   }, [navigate]);
 
-  const handleLogout = () => {
-    // Navigate to login - cookie will expire naturally
-    // Or optionally, we could call a backend logout endpoint to force cookie expiration
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      // Call logout endpoint to clear JWT cookie on backend
+      await apiClient.fetch("/credential/logout", {
+        method: "POST"
+      });
+      
+      // Navigate to login page after logout
+      navigate("/login");
+    } catch (err) {
+      // Even if logout fails, still redirect to login
+      navigate("/login");
+    }
   };
 
   // Calculate overall score as average of all category scores

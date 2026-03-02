@@ -45,6 +45,27 @@ export default function Login() {
     };
   }, []);
 
+  // Check if user is already logged in
+  useEffect(() => {
+    const checkIfAlreadyLoggedIn = async () => {
+      try {
+        // Attempt to call an authenticated endpoint
+        const response = await apiClient.fetch("/survey/survey_score");
+        
+        // If response is 200, user is already authenticated
+        if (response.status === 200) {
+          // User already logged in, redirect to dashboard
+          navigate("/dashboard");
+          return;
+        }
+      } catch (err) {
+        // User not logged in, stay on login page
+      }
+    };
+
+    checkIfAlreadyLoggedIn();
+  }, [navigate]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isRetryLocked) return;
@@ -77,9 +98,28 @@ export default function Login() {
         return;
       }
 
-      // JWT is now set in httpOnly cookie by backend
-      // Navigate to dashboard
-      navigate("/dashboard");
+      if (response.status === 401) {
+        // Unauthorized (wrong credentials)
+        setError("Invalid username or password.");
+        setIsLoading(false);
+        return;
+      }
+
+      if (response.status === 200) {
+        // Success - parse response and navigate to dashboard
+        const responseData = await response.json();
+        
+        // Small delay to ensure cookie is set
+        setTimeout(() => {
+          navigate("/dashboard");
+        }, 100);
+        return;
+      }
+
+      // Other errors
+      const errorText = await response.text();
+      setError(errorText || "Login failed. Please try again.");
+      setIsLoading(false);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);

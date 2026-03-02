@@ -58,7 +58,7 @@ public class SecurityConfig {
         config.setAllowedHeaders(Arrays.asList("*"));
         
         // Expose these headers in the response
-        config.setExposedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept"));
+        config.setExposedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "Set-Cookie"));
         
         // Cache preflight results for 1 hour
         config.setMaxAge(3600L);
