@@ -213,7 +213,7 @@ export default function Login() {
 
   return (
     <div className="relative flex flex-col lg:flex-row h-screen w-full">
-      {/* Full-screen animated background (mobile) / Left half (desktop) */}
+      {/* Full-screen animated background (mobile) / Left half (desktop)--- */}
       <div className="absolute inset-0 lg:relative lg:w-1/2 overflow-hidden">
         <HeroBackground />
         
