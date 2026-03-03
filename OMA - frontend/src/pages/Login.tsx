@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, Link } from "react-router";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -135,8 +135,11 @@ export default function Login() {
     const container = canvasRef.current;
     if (!container) return;
 
+    // On mobile, drastically reduce the number of animated elements
+    const isMobile = window.innerWidth < 768;
+
     // Create network nodes
-    const nodeCount = 20;
+    const nodeCount = isMobile ? 6 : 20;
     const nodes: HTMLDivElement[] = [];
     
     for (let i = 0; i < nodeCount; i++) {
@@ -150,7 +153,7 @@ export default function Login() {
     }
 
     // Create particles
-    const particleCount = 50;
+    const particleCount = isMobile ? 10 : 50;
     for (let i = 0; i < particleCount; i++) {
       const particle = document.createElement('div');
       particle.className = 'particle';
@@ -160,40 +163,43 @@ export default function Login() {
       container.appendChild(particle);
     }
 
-    // Create hexagons
-    const hexCount = 8;
-    for (let i = 0; i < hexCount; i++) {
-      const hex = document.createElement('div');
-      hex.className = 'hexagon';
-      hex.style.left = `${Math.random() * 90}%`;
-      hex.style.top = `${Math.random() * 90}%`;
-      hex.style.animationDelay = `${Math.random() * 25}s`;
-      container.appendChild(hex);
-    }
+    // Skip hexagons, data streams, and geometric shapes on mobile
+    if (!isMobile) {
+      // Create hexagons
+      const hexCount = 8;
+      for (let i = 0; i < hexCount; i++) {
+        const hex = document.createElement('div');
+        hex.className = 'hexagon';
+        hex.style.left = `${Math.random() * 90}%`;
+        hex.style.top = `${Math.random() * 90}%`;
+        hex.style.animationDelay = `${Math.random() * 25}s`;
+        container.appendChild(hex);
+      }
 
-    // Create data streams
-    const streamCount = 5;
-    for (let i = 0; i < streamCount; i++) {
-      const stream = document.createElement('div');
-      stream.className = 'data-stream';
-      stream.style.left = `${Math.random() * 100}%`;
-      stream.style.animationDelay = `${Math.random() * 3}s`;
-      stream.style.animationDuration = `${3 + Math.random() * 2}s`;
-      container.appendChild(stream);
-    }
+      // Create data streams
+      const streamCount = 5;
+      for (let i = 0; i < streamCount; i++) {
+        const stream = document.createElement('div');
+        stream.className = 'data-stream';
+        stream.style.left = `${Math.random() * 100}%`;
+        stream.style.animationDelay = `${Math.random() * 3}s`;
+        stream.style.animationDuration = `${3 + Math.random() * 2}s`;
+        container.appendChild(stream);
+      }
 
-    // Create geometric shapes
-    const shapes = ['circle', 'square'];
-    for (let i = 0; i < 6; i++) {
-      const shape = document.createElement('div');
-      shape.className = `geometric-shape ${shapes[Math.floor(Math.random() * shapes.length)]}`;
-      shape.style.width = `${50 + Math.random() * 100}px`;
-      shape.style.height = `${50 + Math.random() * 100}px`;
-      shape.style.left = `${Math.random() * 90}%`;
-      shape.style.top = `${Math.random() * 90}%`;
-      shape.style.animationDelay = `${Math.random() * 20}s`;
-      shape.style.animationDuration = `${15 + Math.random() * 10}s`;
-      container.appendChild(shape);
+      // Create geometric shapes
+      const shapes = ['circle', 'square'];
+      for (let i = 0; i < 6; i++) {
+        const shape = document.createElement('div');
+        shape.className = `geometric-shape ${shapes[Math.floor(Math.random() * shapes.length)]}`;
+        shape.style.width = `${50 + Math.random() * 100}px`;
+        shape.style.height = `${50 + Math.random() * 100}px`;
+        shape.style.left = `${Math.random() * 90}%`;
+        shape.style.top = `${Math.random() * 90}%`;
+        shape.style.animationDelay = `${Math.random() * 20}s`;
+        shape.style.animationDuration = `${15 + Math.random() * 10}s`;
+        container.appendChild(shape);
+      }
     }
 
     return () => {
@@ -310,6 +316,17 @@ export default function Login() {
             </Button>
 
           </form>
+
+          <p className="text-xs text-center text-gray-400 mt-2">
+            By signing in you agree to our{" "}
+            <Link to="/privacy-policy" className="underline hover:text-gray-600">
+              Privacy Policy
+            </Link>{" "}
+            and{" "}
+            <Link to="/terms-of-service" className="underline hover:text-gray-600">
+              Terms of Service
+            </Link>.
+          </p>
         </div>
       </div>
     </div>

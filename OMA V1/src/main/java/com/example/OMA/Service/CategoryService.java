@@ -75,7 +75,7 @@ public class CategoryService {
         // ── Step 2: Group children using HashMaps with computeIfAbsent ──
  
         // MainQuestions grouped by categoryId
-        Map<Long, List<MainQuestion>> mainQsByCategoryId = new HashMap<>();
+        Map<Integer, List<MainQuestion>> mainQsByCategoryId = new HashMap<>();
         for (MainQuestion mq : allMainQuestions) {
             mainQsByCategoryId.computeIfAbsent(mq.getCategoryId(), k -> new ArrayList<>()).add(mq);
         }

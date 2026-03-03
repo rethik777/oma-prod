@@ -89,9 +89,12 @@ export function useAutoSave({
 
       // For page unload, use sendBeacon (fire-and-forget, can't await)
       if (beacon) {
+        const consentAt = sessionStorage.getItem("gdpr_consent_at") ?? undefined;
         const payload = JSON.stringify({
           sessionId,
           responses: responsesRef.current,
+          consentGiven: !!consentAt,
+          consentAt,
         });
         const blob = new Blob([payload], { type: "application/json" });
         const sent = navigator.sendBeacon(
@@ -108,11 +111,14 @@ export function useAutoSave({
       onStatusChange?.("saving");
 
       try {
+        const consentAt = sessionStorage.getItem("gdpr_consent_at") ?? undefined;
         const res = await apiClient.fetch("/survey/save-progress", {
           method: "POST",
           body: JSON.stringify({
             sessionId,
             responses: responsesRef.current,
+            consentGiven: !!consentAt,
+            consentAt,
           }),
         });
         if (res.ok) {

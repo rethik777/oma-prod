@@ -449,11 +449,14 @@ export default function Survey() {
       // Ensure the latest responses are persisted before marking as submitted
       triggerSave();
 
+      const consentAt = sessionStorage.getItem("gdpr_consent_at") ?? undefined;
       const payload = {
         sessionId: sessionId.current,
         startedAt: localStorage.getItem(LS_STARTED_AT),
         submittedAt: new Date().toISOString(),
         responses,
+        consentGiven: !!consentAt,
+        consentAt,
       };
       const res = await apiClient.fetch("/survey/submit", {
         method: "POST",
