@@ -17,6 +17,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -29,6 +31,8 @@ import java.util.Map;
 
 @Service
 public class SurveyService {
+
+    private static final Logger log = LoggerFactory.getLogger(SurveyService.class);
 
     private final SurveySubmissionRepo submissionRepo;
     private final SurveyResponseRepo responseRepo;
@@ -52,8 +56,7 @@ public class SurveyService {
         // Upsert the submission row (create if first answer for this session)
         SurveySubmission submission = submissionRepo.findById(dto.getSessionId()).orElse(null);
         if (submission == null) {
-            Instant startedAt = parseInstant(dto.getStartedAt());
-            submission = new SurveySubmission(dto.getSessionId(), startedAt, null);
+            submission = new SurveySubmission(dto.getSessionId(), null);
             submissionRepo.saveAndFlush(submission);
         }
 
@@ -77,7 +80,7 @@ public class SurveyService {
         // Upsert the submission row
         SurveySubmission submission = submissionRepo.findById(dto.getSessionId()).orElse(null);
         if (submission == null) {
-            submission = new SurveySubmission(dto.getSessionId(), Instant.now(), null);
+            submission = new SurveySubmission(dto.getSessionId(), null);
             // Persist consent if provided
             applyConsent(submission, dto.getConsentGiven(), dto.getConsentAt());
             submissionRepo.saveAndFlush(submission);
@@ -116,9 +119,6 @@ public class SurveyService {
     @Transactional
     public SurveySubmission submitSurvey(SurveySubmissionDTO dto) {
 
-        Instant startedAt = dto.getStartedAt() != null
-                ? parseInstant(dto.getStartedAt())
-                : null;
         Instant submittedAt = dto.getSubmittedAt() != null
                 ? parseInstant(dto.getSubmittedAt())
                 : Instant.now();
@@ -126,7 +126,6 @@ public class SurveyService {
         // Reuse existing submission row if one was created by save-answer calls
         SurveySubmission submission = submissionRepo.findById(dto.getSessionId()).orElse(null);
         if (submission != null) {
-            submission.setStartedAt(startedAt);
             submission.setSubmittedAt(submittedAt);
             applyConsent(submission, dto.getConsentGiven(), dto.getConsentAt());
             // Delete old draft responses
@@ -134,7 +133,7 @@ public class SurveyService {
             responseRepo.flush();
             submission.getResponses().clear();
         } else {
-            submission = new SurveySubmission(dto.getSessionId(), startedAt, submittedAt);
+            submission = new SurveySubmission(dto.getSessionId(), submittedAt);
             applyConsent(submission, dto.getConsentGiven(), dto.getConsentAt());
         }
 
@@ -195,7 +194,6 @@ public class SurveyService {
 
         Map<String, Object> data = new java.util.LinkedHashMap<>();
         data.put("sessionId", sub.getSessionId());
-        data.put("startedAt", sub.getStartedAt() != null ? sub.getStartedAt().toString() : null);
         data.put("submittedAt", sub.getSubmittedAt() != null ? sub.getSubmittedAt().toString() : null);
         data.put("consentGiven", sub.getConsentGiven());
         data.put("consentAt", sub.getConsentAt() != null ? sub.getConsentAt().toString() : null);
@@ -203,25 +201,41 @@ public class SurveyService {
         return data;
     }
 
-    // ── GDPR data deletion ──
+    // ── GDPR data anonymization (irreversible) ──
     /**
-     * Delete all response data for a session (right to erasure).
-     * Removes responses and nullifies PII-adjacent fields but keeps the
-     * submission row as an audit stub.
+     * Irreversibly anonymize all data for a session (right to erasure / right to be forgotten).
+     *
+     * Approach: Replace the original session_id with a random ANON-<UUID> value
+     * in both survey_submission (PK) and survey_response (FK) tables atomically.
+     * Also nullifies all temporal fields, consent fields, and free-text responses.
+     *
+     * After this operation:
+     * - The original session ID no longer exists anywhere in the database
+     * - The anonymized rows cannot be linked back to any session or person
+     * - The structured response data (option selections, rankings) is preserved
+     *   for aggregated organisational analysis
+     * - Free-text responses are erased (may contain inadvertent PII)
+     * - This is irreversible: even with database logs or rollbacks, the mapping
+     *   between the original session ID and the anonymous ID is never recorded
      */
     @Transactional
-    public boolean deleteSessionData(String sessionId) {
+    public boolean anonymizeSessionData(String sessionId) {
         SurveySubmission sub = submissionRepo.findById(sessionId).orElse(null);
         if (sub == null) return false;
 
-        // Delete all response rows
-        responseRepo.deleteBySubmissionSessionId(sessionId);
-        responseRepo.flush();
+        // Generate a random anonymous replacement ID that cannot be reversed
+        // Prefix is REDACTED- (distinct from normal session prefix anon-)
+        String anonymousId = "REDACTED-" + java.util.UUID.randomUUID().toString();
 
-        // Nullify data fields but keep row as audit trail
-        sub.setConsentGiven(false);
-        sub.setConsentAt(null);
-        submissionRepo.saveAndFlush(sub);
+        // Atomically update FK references in survey_response first (child table)
+        responseRepo.anonymizeResponses(sessionId, anonymousId);
+
+        // Atomically update PK + nullify fields in survey_submission (parent table)
+        submissionRepo.anonymizeSubmission(sessionId, anonymousId);
+
+        // Audit log: record that anonymization occurred without logging the original session ID
+        log.info("GDPR anonymization completed: session replaced with {}", anonymousId);
+
         return true;
     }
 
@@ -392,7 +406,6 @@ public class SurveyService {
                 ResponseEntity<BertResponse> res = restTemplate.postForEntity(url, request, BertResponse.class);
                 BertResponse body = res.getBody();
                 BigDecimal stage = body.getPredicted_class_id();
-                System.out.println(response.getFreeText() +" ------ "+stage + " ---- " );
                 categoryTotalScore.put(categoryId, categoryTotalScore.getOrDefault(categoryId, BigDecimal.ZERO).add(stage));
             }
 
