@@ -6,7 +6,7 @@ const layers = [
     { label: 'STRATEGIC', color: '#92c66d', cx: 200, cy: 220, r: 145, labelX: 300, labelY: 175, delay: 150, minScore: 3.0, maxScore: 4.0 },
     { label: 'INTEGRATED', color: '#f4cc54', cx: 200, cy: 250, r: 115, labelX: 320, labelY: 255, delay: 300, minScore: 2.0, maxScore: 3.0 },
     { label: 'DEFINED', color: '#f2a900', cx: 200, cy: 280, r: 85, labelX: 310, labelY: 325, delay: 450, minScore: 1.0, maxScore: 2.0 },
-    { label: 'HEROES', color: '#e23a1a', cx: 200, cy: 310, r: 55, labelX: 0, labelY: 0, delay: 600, minScore: 0.5, maxScore: 1.0 },
+    { label: 'HEROES', color: '#19d626ff', cx: 200, cy: 310, r: 55, labelX: 0, labelY: 0, delay: 600, minScore: 0.5, maxScore: 1.0 },
 ];
 
 interface OnionPeelProps {
