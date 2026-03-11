@@ -136,7 +136,7 @@ export default function Home() {
         <HeroBackground />
         <div className="max-w-7xl mx-auto text-center space-y-6 relative z-10">
           <h2 className="text-5xl md:text-6xl font-light text-[#002D72]">
-            Measure, Improve, Transform
+            Measuring, Improve, Transform
           </h2>
           <p className="text-xl text-[#4A4A4A] max-w-3xl mx-auto">
             A data-driven framework to evolve your organizational maturity.
